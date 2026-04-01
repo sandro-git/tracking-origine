@@ -1,0 +1,121 @@
+---
+interface Props {
+  totalGroups: number;
+  totalPeople: number;
+  originStats: [string, number][];
+  todayEntries: any[];
+  maxCount: number;
+}
+const { totalGroups, totalPeople, originStats, todayEntries, maxCount } = Astro.props;
+---
+<div class="stats-panel">
+  <div class="stat-card">
+    <div class="stat-header">
+      <div class="stat-title" id="period-label">Aujourd'hui</div>
+    </div>
+    <div class="kpi-row">
+      <div class="kpi">
+        <div class="field-label">Groupes</div>
+        <div class="kpi-val" id="stat-groups">{totalGroups}</div>
+      </div>
+      <div class="kpi">
+        <div class="field-label">Personnes</div>
+        <div class="kpi-val" id="stat-people">{totalPeople}</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-header"><div class="stat-title">Sources</div></div>
+    <div id="bars-container">
+      {originStats.length === 0 ? (
+        <div class="empty">Aucune donnée</div>
+      ) : (
+        originStats.map(([label, count]) => (
+          <div class="bar-row">
+            <div class="bar-label" title={label}>{label}</div>
+            <div class="bar-track">
+              <div class="bar-fill" style={`width:${Math.round(count / maxCount * 100)}%`}></div>
+            </div>
+            <div class="bar-val">{count}</div>
+          </div>
+        ))
+      )}
+    </div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-header"><div class="stat-title">Dernières entrées</div></div>
+    <div id="recent-list">
+      {todayEntries.length === 0 ? (
+        <div class="empty">Aucune entrée</div>
+      ) : (
+        todayEntries.slice(0, 6).map(e => (
+          <div class="entry-pill">
+            <span class="entry-tag">{e.origin_label}{e.sub_origin ? ` · ${e.sub_origin}` : ''}</span>
+            <span class="entry-meta">{e.total} pers. · {e.heure}</span>
+          </div>
+        ))
+      )}
+    </div>
+  </div>
+
+  <div class="export-row">
+    <button class="export-btn" id="exportBtn">↓ Export CSV</button>
+  </div>
+</div>
+
+<style>
+  .stats-panel { padding: 24px 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 20px; }
+
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 18px;
+  }
+  .stat-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+  .stat-title { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 13px; }
+
+  .kpi-row { display: flex; gap: 24px; }
+  .kpi .field-label { margin-bottom: 4px; }
+  .field-label { font-size: 11px; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; }
+  .kpi-val { font-size: 28px; font-weight: 500; color: var(--accent); line-height: 1; }
+
+  .bar-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .bar-label { font-size: 11px; color: var(--muted); width: 110px; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .bar-track { flex: 1; height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+  .bar-fill { height: 100%; background: var(--accent); border-radius: 3px; transition: width 0.4s ease; }
+  .bar-val { font-size: 11px; color: var(--muted); width: 22px; text-align: right; }
+
+  .entry-pill {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 11px;
+    margin-bottom: 6px;
+  }
+  .entry-tag { color: var(--accent); }
+  .entry-meta { color: var(--muted); }
+
+  .export-row { display: flex; gap: 8px; }
+  .export-btn {
+    flex: 1;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    border-radius: 8px;
+    padding: 9px;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.12s;
+  }
+  .export-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  .empty { text-align: center; padding: 20px; color: var(--muted); font-size: 12px; }
+</style>

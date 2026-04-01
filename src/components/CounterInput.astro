@@ -1,0 +1,46 @@
+---
+interface Props {
+  label: string;
+  field: 'adults' | 'children';
+  initialValue: number;
+}
+const { label, field, initialValue } = Astro.props;
+---
+<div>
+  <div class="field-label">{label}</div>
+  <div class="counter-input">
+    <button data-field={field} data-delta="-1">−</button>
+    <div class="counter-value" id={`${field}-val`}>{initialValue}</div>
+    <button data-field={field} data-delta="1">+</button>
+  </div>
+</div>
+
+<style>
+  .field-label {
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  .counter-input {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 14px;
+  }
+  .counter-input button {
+    background: none;
+    border: none;
+    color: var(--accent);
+    font-size: 20px;
+    cursor: pointer;
+    padding: 0 4px;
+    transition: opacity 0.12s;
+  }
+  .counter-input button:hover { opacity: 0.6; }
+  .counter-value { flex: 1; text-align: center; font-size: 22px; font-weight: 500; }
+</style>

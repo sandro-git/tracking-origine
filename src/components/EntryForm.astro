@@ -1,0 +1,71 @@
+---
+import CounterInput from './CounterInput.astro';
+import OriginGrid from './OriginGrid.astro';
+---
+<div class="form-panel">
+  <div class="section-title">Groupe</div>
+  <div class="group-row">
+    <CounterInput label="Adultes" field="adults" initialValue={1} />
+    <CounterInput label="Enfants" field="children" initialValue={0} />
+  </div>
+
+  <div class="section-title">Comment ils nous ont trouvés ?</div>
+  <OriginGrid />
+
+  <div class="section-title" style="margin-top: 6px;">Note (optionnel)</div>
+  <textarea id="noteField" rows="2" placeholder="Ex: mention d'un influenceur précis, code promo..."></textarea>
+
+  <button class="submit-btn" id="submitBtn">✓ Enregistrer l'entrée</button>
+</div>
+
+<style>
+  .form-panel {
+    padding: 28px 32px;
+    overflow-y: auto;
+    border-right: 1px solid var(--border);
+  }
+  .section-title {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 12px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    margin-bottom: 14px;
+  }
+  .group-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 26px; }
+
+  textarea {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    color: var(--text);
+    width: 100%;
+    resize: none;
+    outline: none;
+    transition: border-color 0.12s;
+    margin-bottom: 24px;
+  }
+  textarea:focus { border-color: var(--accent); }
+  textarea::placeholder { color: var(--muted); }
+
+  .submit-btn {
+    width: 100%;
+    background: var(--accent);
+    color: #0d0d0f;
+    border: none;
+    border-radius: 10px;
+    padding: 15px;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 14px;
+    cursor: pointer;
+    letter-spacing: 0.05em;
+    transition: all 0.15s;
+  }
+  .submit-btn:hover { opacity: 0.88; transform: translateY(-1px); }
+  .submit-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+</style>

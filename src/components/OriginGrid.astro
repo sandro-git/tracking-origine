@@ -1,0 +1,95 @@
+---
+---
+<div class="origin-grid">
+  <button class="origin-btn" data-origin="google" data-label="Google">
+    <span class="icon">🔍</span><span class="label">Google</span>
+  </button>
+  <button class="origin-btn" data-origin="instagram" data-label="Instagram">
+    <span class="icon">📸</span><span class="label">Instagram</span>
+  </button>
+  <button class="origin-btn" data-origin="tiktok" data-label="TikTok">
+    <span class="icon">🎵</span><span class="label">TikTok</span>
+  </button>
+  <button class="origin-btn" data-origin="bouche" data-label="Bouche à oreille">
+    <span class="icon">💬</span><span class="label">Bouche à oreille</span>
+  </button>
+  <button class="origin-btn" data-origin="passage" data-label="Passage / Vitrine">
+    <span class="icon">🚶</span><span class="label">Passage / Vitrine</span>
+  </button>
+  <button class="origin-btn" data-origin="maps" data-label="Google Maps">
+    <span class="icon">📍</span><span class="label">Google Maps</span>
+  </button>
+  <button class="origin-btn" data-origin="event" data-label="Événement">
+    <span class="icon">🎉</span><span class="label">Événement</span>
+  </button>
+  <button class="origin-btn" data-origin="flyer" data-label="Flyer / Affiche">
+    <span class="icon">📄</span><span class="label">Flyer / Affiche</span>
+  </button>
+  <button class="origin-btn" data-origin="autre" data-label="Autre">
+    <span class="icon">❓</span><span class="label">Autre</span>
+  </button>
+</div>
+
+<div class="sub-options" id="sub-google">
+  <button class="sub-btn">Recherche organique</button>
+  <button class="sub-btn">Google Ads</button>
+</div>
+<div class="sub-options" id="sub-instagram">
+  <button class="sub-btn">Post organique</button>
+  <button class="sub-btn">Story</button>
+  <button class="sub-btn">Pub Instagram</button>
+  <button class="sub-btn">Influenceur</button>
+</div>
+<div class="sub-options" id="sub-tiktok">
+  <button class="sub-btn">Vidéo organique</button>
+  <button class="sub-btn">Pub TikTok</button>
+  <button class="sub-btn">Influenceur</button>
+</div>
+<div class="sub-options" id="sub-event">
+  <button class="sub-btn">Anniversaire</button>
+  <button class="sub-btn">EVG/EVJF</button>
+  <button class="sub-btn">Team building</button>
+  <button class="sub-btn">Scolaire</button>
+</div>
+
+<style>
+  .origin-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-bottom: 26px;
+  }
+  .origin-btn {
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 8px 12px;
+    cursor: pointer;
+    transition: all 0.12s;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 7px;
+  }
+  .origin-btn:hover { border-color: var(--accent); background: var(--accent-dim); }
+  .origin-btn.selected { border-color: var(--accent); background: var(--accent-dim); box-shadow: 0 0 0 1px var(--accent); }
+  .origin-btn .icon { font-size: 20px; }
+  .origin-btn .label { font-size: 10px; color: var(--text); text-align: center; line-height: 1.3; }
+  .origin-btn.selected .label { color: var(--accent); }
+
+  .sub-options { display: none; gap: 8px; flex-wrap: wrap; margin-top: -14px; margin-bottom: 24px; }
+  .sub-options.visible { display: flex; }
+  .sub-btn {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 5px 12px;
+    font-size: 11px;
+    font-family: 'DM Mono', monospace;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.12s;
+  }
+  .sub-btn:hover { border-color: var(--accent); color: var(--text); }
+  .sub-btn.selected { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+</style>
