@@ -1,0 +1,507 @@
+---
+// Page principale SSR - récupère les stats du jour au chargement
+import { db } from '../lib/turso';
+
+const result = await db.execute({
+  sql: `SELECT * FROM entries WHERE site = ? AND date = date('now') ORDER BY created_at DESC`,
+  args: ['VR Café']
+});
+const todayEntries = result.rows as any[];
+
+const totalGroups = todayEntries.length;
+const totalPeople = todayEntries.reduce((s, e) => s + (e.total || 0), 0);
+
+const originCounts: Record<string, number> = {};
+todayEntries.forEach(e => {
+  const key = e.origin_label + (e.sub_origin ? ` — ${e.sub_origin}` : '');
+  originCounts[key] = (originCounts[key] || 0) + e.total;
+});
+const originStats = Object.entries(originCounts).sort((a, b) => b[1] - a[1]);
+const maxCount = originStats[0]?.[1] || 1;
+
+const dateDisplay = new Date().toLocaleDateString('fr-FR', {
+  weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
+});
+---
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Origine Clients — Caisse</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@700;800&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0d0d0f;
+      --surface: #16161a;
+      --border: #2a2a30;
+      --accent: #c8f135;
+      --accent-dim: rgba(200,241,53,0.12);
+      --text: #e8e8ec;
+      --muted: #6b6b7a;
+      --success: #00d68f;
+      --danger: #ff4d6d;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Mono', monospace;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      padding: 18px 32px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+
+    .logo { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 17px; color: var(--accent); }
+
+    .header-right { display: flex; align-items: center; gap: 16px; }
+
+    .date-display { font-size: 12px; color: var(--muted); }
+
+    .period-tabs { display: flex; gap: 4px; }
+    .period-tab {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      border-radius: 6px;
+      padding: 5px 12px;
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      cursor: pointer;
+      transition: all 0.12s;
+    }
+    .period-tab:hover { border-color: var(--accent); color: var(--text); }
+    .period-tab.active { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+
+    main {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr 380px;
+      overflow: hidden;
+    }
+
+    .form-panel {
+      padding: 28px 32px;
+      overflow-y: auto;
+      border-right: 1px solid var(--border);
+    }
+
+    .section-title {
+      font-family: 'Syne', sans-serif;
+      font-weight: 700;
+      font-size: 12px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      margin-bottom: 14px;
+    }
+
+    .group-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 26px; }
+
+    .field-label { font-size: 11px; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 8px; }
+
+    .counter-input {
+      display: flex; align-items: center; gap: 8px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 8px; padding: 10px 14px;
+    }
+    .counter-input button {
+      background: none; border: none; color: var(--accent);
+      font-size: 20px; cursor: pointer; padding: 0 4px; transition: opacity 0.12s;
+    }
+    .counter-input button:hover { opacity: 0.6; }
+    .counter-value { flex: 1; text-align: center; font-size: 22px; font-weight: 500; }
+
+    .origin-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 26px; }
+
+    .origin-btn {
+      background: var(--surface); border: 1.5px solid var(--border);
+      border-radius: 10px; padding: 14px 8px 12px;
+      cursor: pointer; transition: all 0.12s;
+      display: flex; flex-direction: column; align-items: center; gap: 7px;
+    }
+    .origin-btn:hover { border-color: var(--accent); background: var(--accent-dim); }
+    .origin-btn.selected { border-color: var(--accent); background: var(--accent-dim); box-shadow: 0 0 0 1px var(--accent); }
+    .origin-btn .icon { font-size: 20px; }
+    .origin-btn .label { font-size: 10px; color: var(--text); text-align: center; line-height: 1.3; }
+    .origin-btn.selected .label { color: var(--accent); }
+
+    .sub-options { display: none; gap: 8px; flex-wrap: wrap; margin-top: -14px; margin-bottom: 24px; }
+    .sub-options.visible { display: flex; }
+    .sub-btn {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 20px; padding: 5px 12px;
+      font-size: 11px; font-family: 'DM Mono', monospace;
+      color: var(--muted); cursor: pointer; transition: all 0.12s;
+    }
+    .sub-btn:hover { border-color: var(--accent); color: var(--text); }
+    .sub-btn.selected { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+
+    textarea {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 8px; padding: 10px 14px;
+      font-family: 'DM Mono', monospace; font-size: 12px;
+      color: var(--text); width: 100%; resize: none; outline: none;
+      transition: border-color 0.12s; margin-bottom: 24px;
+    }
+    textarea:focus { border-color: var(--accent); }
+    textarea::placeholder { color: var(--muted); }
+
+    .submit-btn {
+      width: 100%; background: var(--accent); color: #0d0d0f;
+      border: none; border-radius: 10px; padding: 15px;
+      font-family: 'Syne', sans-serif; font-weight: 700; font-size: 14px;
+      cursor: pointer; letter-spacing: 0.05em; transition: all 0.15s;
+    }
+    .submit-btn:hover { opacity: 0.88; transform: translateY(-1px); }
+    .submit-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+    /* Stats panel */
+    .stats-panel { padding: 24px 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 20px; }
+
+    .stat-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; padding: 16px 18px;
+    }
+
+    .stat-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+    .stat-title { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 13px; }
+
+    .kpi-row { display: flex; gap: 24px; }
+    .kpi .field-label { margin-bottom: 4px; }
+    .kpi-val { font-size: 28px; font-weight: 500; color: var(--accent); line-height: 1; }
+
+    .bar-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+    .bar-label { font-size: 11px; color: var(--muted); width: 110px; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .bar-track { flex: 1; height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+    .bar-fill { height: 100%; background: var(--accent); border-radius: 3px; transition: width 0.4s ease; }
+    .bar-val { font-size: 11px; color: var(--muted); width: 22px; text-align: right; }
+
+    .entry-pill {
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: 8px; padding: 8px 12px;
+      display: flex; justify-content: space-between; align-items: center; font-size: 11px;
+      margin-bottom: 6px;
+    }
+    .entry-tag { color: var(--accent); }
+    .entry-meta { color: var(--muted); }
+
+    .export-row { display: flex; gap: 8px; }
+    .export-btn {
+      flex: 1; background: transparent; border: 1px solid var(--border);
+      color: var(--muted); border-radius: 8px; padding: 9px;
+      font-family: 'DM Mono', monospace; font-size: 11px;
+      cursor: pointer; transition: all 0.12s;
+    }
+    .export-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+    .empty { text-align: center; padding: 20px; color: var(--muted); font-size: 12px; }
+
+    .toast {
+      position: fixed; bottom: 24px; left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: var(--success); color: #0d0d0f;
+      padding: 11px 22px; border-radius: 30px;
+      font-family: 'Syne', sans-serif; font-weight: 700; font-size: 13px;
+      transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+      z-index: 1000; pointer-events: none;
+    }
+    .toast.show { transform: translateX(-50%) translateY(0); }
+    .toast.error { background: var(--danger); }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">ORIGINE // CAISSE</div>
+  <div class="header-right">
+    <div class="period-tabs">
+      <button class="period-tab active" data-period="today" onclick="setPeriod(this)">Aujourd'hui</button>
+      <button class="period-tab" data-period="week" onclick="setPeriod(this)">7 jours</button>
+      <button class="period-tab" data-period="month" onclick="setPeriod(this)">30 jours</button>
+    </div>
+    <div class="date-display">{dateDisplay}</div>
+  </div>
+</header>
+
+<main>
+  <!-- FORMULAIRE -->
+  <div class="form-panel">
+    <div class="section-title">Groupe</div>
+    <div class="group-row">
+      <div>
+        <div class="field-label">Adultes</div>
+        <div class="counter-input">
+          <button onclick="adjust('adults', -1)">−</button>
+          <div class="counter-value" id="adults-val">1</div>
+          <button onclick="adjust('adults', 1)">+</button>
+        </div>
+      </div>
+      <div>
+        <div class="field-label">Enfants</div>
+        <div class="counter-input">
+          <button onclick="adjust('children', -1)">−</button>
+          <div class="counter-value" id="children-val">0</div>
+          <button onclick="adjust('children', 1)">+</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-title">Comment ils nous ont trouvés ?</div>
+    <div class="origin-grid">
+      <button class="origin-btn" data-origin="google" data-label="Google" onclick="selectOrigin(this)">
+        <span class="icon">🔍</span><span class="label">Google</span>
+      </button>
+      <button class="origin-btn" data-origin="instagram" data-label="Instagram" onclick="selectOrigin(this)">
+        <span class="icon">📸</span><span class="label">Instagram</span>
+      </button>
+      <button class="origin-btn" data-origin="tiktok" data-label="TikTok" onclick="selectOrigin(this)">
+        <span class="icon">🎵</span><span class="label">TikTok</span>
+      </button>
+      <button class="origin-btn" data-origin="bouche" data-label="Bouche à oreille" onclick="selectOrigin(this)">
+        <span class="icon">💬</span><span class="label">Bouche à oreille</span>
+      </button>
+      <button class="origin-btn" data-origin="passage" data-label="Passage / Vitrine" onclick="selectOrigin(this)">
+        <span class="icon">🚶</span><span class="label">Passage / Vitrine</span>
+      </button>
+      <button class="origin-btn" data-origin="maps" data-label="Google Maps" onclick="selectOrigin(this)">
+        <span class="icon">📍</span><span class="label">Google Maps</span>
+      </button>
+      <button class="origin-btn" data-origin="event" data-label="Événement" onclick="selectOrigin(this)">
+        <span class="icon">🎉</span><span class="label">Événement</span>
+      </button>
+      <button class="origin-btn" data-origin="flyer" data-label="Flyer / Affiche" onclick="selectOrigin(this)">
+        <span class="icon">📄</span><span class="label">Flyer / Affiche</span>
+      </button>
+      <button class="origin-btn" data-origin="autre" data-label="Autre" onclick="selectOrigin(this)">
+        <span class="icon">❓</span><span class="label">Autre</span>
+      </button>
+    </div>
+
+    <div class="sub-options" id="sub-google">
+      <button class="sub-btn" onclick="selectSub(this)">Recherche organique</button>
+      <button class="sub-btn" onclick="selectSub(this)">Google Ads</button>
+    </div>
+    <div class="sub-options" id="sub-instagram">
+      <button class="sub-btn" onclick="selectSub(this)">Post organique</button>
+      <button class="sub-btn" onclick="selectSub(this)">Story</button>
+      <button class="sub-btn" onclick="selectSub(this)">Pub Instagram</button>
+      <button class="sub-btn" onclick="selectSub(this)">Influenceur</button>
+    </div>
+    <div class="sub-options" id="sub-tiktok">
+      <button class="sub-btn" onclick="selectSub(this)">Vidéo organique</button>
+      <button class="sub-btn" onclick="selectSub(this)">Pub TikTok</button>
+      <button class="sub-btn" onclick="selectSub(this)">Influenceur</button>
+    </div>
+    <div class="sub-options" id="sub-event">
+      <button class="sub-btn" onclick="selectSub(this)">Anniversaire</button>
+      <button class="sub-btn" onclick="selectSub(this)">EVG/EVJF</button>
+      <button class="sub-btn" onclick="selectSub(this)">Team building</button>
+      <button class="sub-btn" onclick="selectSub(this)">Scolaire</button>
+    </div>
+
+    <div class="section-title" style="margin-top: 6px;">Note (optionnel)</div>
+    <textarea id="noteField" rows="2" placeholder="Ex: mention d'un influenceur précis, code promo..."></textarea>
+
+    <button class="submit-btn" id="submitBtn" onclick="submitEntry()">✓ Enregistrer l'entrée</button>
+  </div>
+
+  <!-- STATS -->
+  <div class="stats-panel">
+    <div class="stat-card">
+      <div class="stat-header"><div class="stat-title" id="period-label">Aujourd'hui</div></div>
+      <div class="kpi-row">
+        <div class="kpi">
+          <div class="field-label">Groupes</div>
+          <div class="kpi-val" id="stat-groups">{totalGroups}</div>
+        </div>
+        <div class="kpi">
+          <div class="field-label">Personnes</div>
+          <div class="kpi-val" id="stat-people">{totalPeople}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-header"><div class="stat-title">Sources</div></div>
+      <div id="bars-container">
+        {originStats.length === 0 ? (
+          <div class="empty">Aucune donnée</div>
+        ) : (
+          originStats.map(([label, count]) => (
+            <div class="bar-row">
+              <div class="bar-label" title={label}>{label}</div>
+              <div class="bar-track">
+                <div class="bar-fill" style={`width:${Math.round(count / maxCount * 100)}%`}></div>
+              </div>
+              <div class="bar-val">{count}</div>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-header"><div class="stat-title">Dernières entrées</div></div>
+      <div id="recent-list">
+        {(todayEntries.length || 0) === 0 ? (
+          <div class="empty">Aucune entrée</div>
+        ) : (
+          todayEntries.slice(0, 6).map(e => (
+            <div class="entry-pill">
+              <span class="entry-tag">{e.origin_label}{e.sub_origin ? ` · ${e.sub_origin}` : ''}</span>
+              <span class="entry-meta">{e.total} pers. · {e.heure}</span>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+
+    <div class="export-row">
+      <button class="export-btn" id="exportBtn" onclick="exportCSV()">↓ Export CSV</button>
+    </div>
+  </div>
+</main>
+
+<div class="toast" id="toast">Entrée enregistrée ✓</div>
+
+<script>
+  let state = { adults: 1, children: 0, origin: null, originLabel: null, sub: null };
+  let currentPeriod = 'today';
+
+  function adjust(field, delta) {
+    state[field] = Math.max(field === 'adults' ? 1 : 0, state[field] + delta);
+    document.getElementById(field + '-val').textContent = state[field];
+  }
+
+  function selectOrigin(btn) {
+    document.querySelectorAll('.origin-btn').forEach(b => b.classList.remove('selected'));
+    document.querySelectorAll('.sub-options').forEach(s => s.classList.remove('visible'));
+    document.querySelectorAll('.sub-btn').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+    state.origin = btn.dataset.origin;
+    state.originLabel = btn.dataset.label;
+    state.sub = null;
+    const sub = document.getElementById('sub-' + state.origin);
+    if (sub) sub.classList.add('visible');
+  }
+
+  function selectSub(btn) {
+    document.querySelectorAll('.sub-btn').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+    state.sub = btn.textContent.trim();
+  }
+
+  async function submitEntry() {
+    if (!state.origin) { showToast('Sélectionne une source', true); return; }
+    const btn = document.getElementById('submitBtn');
+    btn.disabled = true;
+    btn.textContent = 'Envoi…';
+
+    try {
+      const res = await fetch('/api/entries', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          origin: state.origin,
+          origin_label: state.originLabel,
+          sub_origin: state.sub,
+          adults: state.adults,
+          children: state.children,
+          note: document.getElementById('noteField').value.trim(),
+          site: 'VR Café'
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+
+      // Reset form
+      state = { adults: 1, children: 0, origin: null, originLabel: null, sub: null };
+      document.getElementById('adults-val').textContent = '1';
+      document.getElementById('children-val').textContent = '0';
+      document.getElementById('noteField').value = '';
+      document.querySelectorAll('.origin-btn').forEach(b => b.classList.remove('selected'));
+      document.querySelectorAll('.sub-options').forEach(s => s.classList.remove('visible'));
+      document.querySelectorAll('.sub-btn').forEach(b => b.classList.remove('selected'));
+
+      showToast('Entrée enregistrée ✓');
+      await refreshStats();
+    } catch (err) {
+      showToast('Erreur : ' + err.message, true);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '✓ Enregistrer l\'entrée';
+    }
+  }
+
+  async function refreshStats() {
+    try {
+      const res = await fetch(`/api/stats?period=${currentPeriod}&site=VR Café`);
+      const data = await res.json();
+      if (!res.ok) return;
+
+      document.getElementById('stat-groups').textContent = data.stats.totalGroups;
+      document.getElementById('stat-people').textContent = data.stats.totalPeople;
+
+      const bars = document.getElementById('bars-container');
+      const max = data.stats.originStats[0]?.count || 1;
+      bars.innerHTML = data.stats.originStats.length === 0
+        ? '<div class="empty">Aucune donnée</div>'
+        : data.stats.originStats.map(s => `
+            <div class="bar-row">
+              <div class="bar-label" title="${s.label}">${s.label}</div>
+              <div class="bar-track"><div class="bar-fill" style="width:${Math.round(s.count/max*100)}%"></div></div>
+              <div class="bar-val">${s.count}</div>
+            </div>`).join('');
+
+      const recent = document.getElementById('recent-list');
+      recent.innerHTML = (data.entries?.length || 0) === 0
+        ? '<div class="empty">Aucune entrée</div>'
+        : data.entries.slice(0, 6).map(e => `
+            <div class="entry-pill">
+              <span class="entry-tag">${e.origin_label}${e.sub_origin ? ' · ' + e.sub_origin : ''}</span>
+              <span class="entry-meta">${e.total} pers. · ${e.heure}</span>
+            </div>`).join('');
+    } catch (err) {
+      console.error('Stats refresh error:', err);
+    }
+  }
+
+  function setPeriod(btn) {
+    document.querySelectorAll('.period-tab').forEach(t => t.classList.remove('active'));
+    btn.classList.add('active');
+    currentPeriod = btn.dataset.period;
+    const labels = { today: "Aujourd'hui", week: '7 derniers jours', month: '30 derniers jours' };
+    document.getElementById('period-label').textContent = labels[currentPeriod];
+    refreshStats();
+  }
+
+  function exportCSV() {
+    window.location.href = `/api/export?period=${currentPeriod}&site=VR Café`;
+  }
+
+  function showToast(msg = 'Entrée enregistrée ✓', isError = false) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.toggle('error', isError);
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2500);
+  }
+</script>
+
+</body>
+</html>
